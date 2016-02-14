@@ -3,10 +3,10 @@
 #include <ctime>
 #include <gl\glaux.h>
 
-bool fullscreen=false;
+bool fullscreen=true;
 const int SZER = 1920;
 const int WYS = 1080;			//rozdzielczosc ekranu
-float y, t;
+float x, y, z, t = 0;
 const float piprzez180 = 3.14159 / 180;
 
 HDC		hDC=NULL;			// Private GDI Device Context
@@ -22,14 +22,14 @@ double czulosc = 4;			// czulosc myszki
 bool klawisze[256];			// tablica trzymajaca kolejke wcisnietych klawiszy
 bool active=TRUE;			// okno domyslnie aktywne
 
-double pozX = 1;				// poz x poczatkowa
-double pozZ = 5;				// poz z poczatkowa
+double pozX = 1;					// poz x poczatkowa
+double pozZ = 5;					// poz z poczatkowa
 double pozY = 1;					// poz y poczatkowa
 double xtra = 0;					// poz -x
 double ztra = 0;					// poz -z
 double XP=0;						// przyspieszenie gracza w kierunku osi X
 double ZP=0;						// przyspieszenie gracza w kierunku osi Z
-double sc_obrY;					// kat obrotu sceny
+double sc_obrY;						// kat obrotu sceny
 double obrot;						// kat obrotu gracza
 double _heading = 0;
 double zprot;						// biezaca predkosc obrotu klawiszami kursora
@@ -55,39 +55,26 @@ void przeskalujScene(GLsizei width, GLsizei height)		// Resize And Initialize Th
 	glMatrixMode(GL_MODELVIEW);							// Select The Modelview Matrix
 	glLoadIdentity();									// Reset The Modelview Matrix
 }
-int inicjujGL()													// All Setup For OpenGL Goes Here
+bool inicjujGL()													// All Setup For OpenGL Goes Here
 {
 	LPARAM lParam=0;
 	SetCursorPos(322,340);						//poczatkowa pozycja celownika
 	float temp_mouse_x = LOWORD(lParam);
 	float temp_mouse_y = HIWORD(lParam);
 	SetCursorPos(320,340);
-	
-	glEnable(GL_TEXTURE_2D);							// mapowanie tekstur
-	glEnable(GL_DEPTH_TEST);							// bufor g³êbi
-	glDepthFunc(GL_LEQUAL);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);				// t³o w kolorze czarnym
-	glShadeModel(GL_SMOOTH);							// cieniowanie g³adkie
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);	// Really Nice Perspective Calculations
-
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_BLEND);
-
 	return TRUE;										//wszystko ok
 }
-int renderujScene()
+bool renderujScene()
 {
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);	//czyszcznie sceny i bufora glebi
-	glBlendFunc(GL_SRC_ALPHA,GL_ZERO); 
 
 	XP *= 0.9f;				//zmniejszenie aktualnego przyspieszenia gracza do zera
 	ZP *= 0.9f; 
-	pozX += XP/100;		//do aktualnego przesuniecia sceny dodajemy aktualne przyspieszenie
-	pozZ += ZP/100;
+	pozX += XP*.01;		//do aktualnego przesuniecia sceny dodajemy aktualne przyspieszenie
+	pozZ += ZP*.01;
 	xtra = -pozX;		//przesuniecie sceny w keirunku przeciwnym do ruchu gracza (symulacja ruchu)
 	ztra = -pozZ;
-
-
+	
 	zprot*=.9f;				//zmnieszenie aktualnego przyspieszenia katowego do zera (obracanie klawiszami kursora)
 	_heading += zprot;		//do aktualnego obrotu sceny w poziomie dodanie przyspieszenia katowego
 	obrot = myszX + _heading;	//uwzglednienie poleznia myszki w poziomie
@@ -99,7 +86,7 @@ int renderujScene()
 	glRotated(sc_obrY,0,1.f,0);				//obrot kamery prawo-lewo
 	glTranslated(xtra, -pozY, ztra);		//przesuniecie kemery x, y, z
 
-		
+
 	glDisable(GL_TEXTURE_2D);
 	glBegin(GL_LINES);
 		glColor4f(1.0f, 0.0f, 0.0f, 1.0f);			//osie ukladu wspolrzednych
@@ -114,25 +101,27 @@ int renderujScene()
 	glEnd();
 	
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);			
-
+	
 	t+=0.02;
-	glBegin(GL_POINTS);
-	for (float z = -10; z < 10; z+=.2)
-		for (float x = -10; x < 10; x += .01)
+	for (z = -10; z < 10; z += .2)
+	{
+		glBegin(GL_LINE_STRIP);
+		for ( x = -10; x < 10; x += .01)
 		{
+			//y = tan(x);
+			//y = abs(x)-abs(z);
+			//y = sin(x)*tan(z)*sin(t);
 			//y = exp(-x*x-z*z)*sin(t);
-			//y = x*x*x*x-3*x*x*x-5*x*x-x;
-			y = sin(x)*sin(z)*sin(t);
+			y = x*x*x*x+2*x*x*x-2*x*x*sin(t)-x+z*z;
+			//y = sin(x)*sin(z)*sin(t);
 			//y = 1/x;
-			//y = x*x + z*z;
+			//y = (x*x + z*z) *sin(t);
 			//y = x-z;
 			glVertex3f(x, y, z);
 		}
-	glEnd();
+		glEnd();
+	}
 
-
-	glPopMatrix();
-	glEnable(GL_TEXTURE_2D);
 	
 	return TRUE;					// kontynuuj renderowanie nastepnej klatki
 }
@@ -312,15 +301,15 @@ BOOL CreateGLWindow(char* title, int width, int height, int bits, bool fullscree
 
 
 		// Try To Set Selected Mode And Get Results.  NOTE: CDS_FULLSCREEN Gets Rid Of Start Bar.
-		width = 1920;
-		height = 1080;
+		//width = 1920;
+		//height = 1080;
 		dmScreenSettings.dmPelsWidth	= width;				// Selected Screen Width
 		dmScreenSettings.dmPelsHeight	= height;				// Selected Screen Height
 
 		if (ChangeDisplaySettings(&dmScreenSettings,CDS_FULLSCREEN)!=DISP_CHANGE_SUCCESSFUL)
 		{
-			width = 1366;
-			height = 768;
+			//width = 1366;
+			//height = 768;
 			dmScreenSettings.dmPelsWidth	= width;				// Selected Screen Width
 			dmScreenSettings.dmPelsHeight	= height;				// Selected Screen Height
 
@@ -444,12 +433,6 @@ BOOL CreateGLWindow(char* title, int width, int height, int bits, bool fullscree
 	return TRUE;									// Success
 }
 int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)			// Window Show State
-
-	//HINSTANCE	hInstance,			// Instance
-	//HINSTANCE	hPrevInstance,		// Previous Instance
-	//LPSTR		lpCmdLine,			// Command Line Parameters
-	//int		nCmdShow		// Window Show State
-
 {
 	MSG		msg;									// Windows Message Structure
 
@@ -482,9 +465,6 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 			else									// Not Time To Quit, Update Screen
 			{
 				SwapBuffers(hDC);					// Swap Buffers (Double Buffering)
-
-				
-
 
 				if (klawisze[VK_UP])  // Move forwards
 				{
